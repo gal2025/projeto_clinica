@@ -1,9 +1,12 @@
 // ─── SHARED COMPONENTS ───
 
 function renderSidebar(activePage) {
-  const user = Auth.currentUser;
+  const user = Auth.currentPerfil;
   if (!user) return "";
   const isMedica = user.role === "medica";
+
+  // Iniciais a partir do nome
+  const iniciais = (user.nome || "?").split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase();
 
   const navItems = isMedica ? [
     { id: "dashboard",  icon: "ti-layout-dashboard", label: "Dashboard" },
@@ -11,7 +14,7 @@ function renderSidebar(activePage) {
     { id: "pacientes",  icon: "ti-users",            label: "Pacientes" },
     { id: "pagamentos", icon: "ti-receipt",          label: "Pagamentos" },
   ] : [
-    { id: "paciente-area", icon: "ti-home",         label: "Início" },
+    { id: "paciente-area", icon: "ti-home",          label: "Inicio" },
     { id: "portal",        icon: "ti-calendar-plus", label: "Marcar consulta" },
   ];
 
@@ -36,10 +39,10 @@ function renderSidebar(activePage) {
       </nav>
       <div class="nav-divider"></div>
       <div class="sidebar-user">
-        <div class="avatar-circle ${isMedica ? '' : 'patient'}">${user.iniciais}</div>
+        <div class="avatar-circle ${isMedica ? '' : 'patient'}">${iniciais}</div>
         <div>
           <div class="sidebar-user-name">${user.nome}</div>
-          <div class="sidebar-user-role">${isMedica ? 'Médica' : 'Paciente'}</div>
+          <div class="sidebar-user-role">${isMedica ? 'Medica' : 'Paciente'}</div>
         </div>
       </div>
       <button class="nav-item mt-2" onclick="Auth.logout()" style="color:var(--red-400)">
@@ -60,7 +63,7 @@ function renderTopbar(showLogin = true) {
         </div>
       </div>
       <div class="topbar-actions">
-        ${Auth.currentUser
+        ${Auth.currentPerfil
           ? `<button class="btn btn-secondary btn-sm" onclick="Router.go(Auth.isMedica() ? 'dashboard' : 'paciente-area')">
                <i class="ti ti-layout-dashboard"></i> Painel
              </button>`
@@ -86,8 +89,8 @@ function showToast(msg, type = "success") {
 }
 
 function renderRecibo(consultaId) {
-  const consulta = DB.consultas.find(c => c.id === consultaId);
-  if (!consulta || !consulta.pagamentoId) return "";
+  const consulta = DB.consultas?.find(c => c.id === consultaId);
+  if (!consulta || !consulta.pagamentoId) return "<p>Recibo nao disponivel</p>";
   const paciente = DB.getPaciente(consulta.pacienteId);
   const pagamento = DB.getPagamento(consulta.pagamentoId);
   const tipo = DB.getTipoConsulta(consulta.tipo);
@@ -100,13 +103,13 @@ function renderRecibo(consultaId) {
             <div class="sidebar-logo-mark" style="width:30px;height:30px;border-radius:8px"><i class="ti ti-brain" style="color:#fff;font-size:14px"></i></div>
             <div>
               <div class="font-medium" style="font-size:13px">${DB.clinica.nome}</div>
-              <div class="text-sm text-muted">${DB.clinica.especialidade} · Online</div>
+              <div class="text-sm text-muted">${DB.clinica.especialidade}</div>
             </div>
           </div>
           <div class="text-sm text-muted">NIF ${DB.clinica.nif}</div>
         </div>
         <div style="text-align:right">
-          <div class="font-medium" style="font-size:13px">Recibo nº ${pagamento.reciboNum}</div>
+          <div class="font-medium" style="font-size:13px">Recibo no ${pagamento.reciboNum}</div>
           <div class="text-sm text-muted">${fmtData(pagamento.data)}</div>
         </div>
       </div>
@@ -114,22 +117,20 @@ function renderRecibo(consultaId) {
         <div class="text-sm text-muted" style="text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px">Paciente</div>
         <div class="font-medium">${paciente.nome}</div>
         <div class="text-sm text-muted">NIF: ${paciente.nif}</div>
-        <div class="text-sm text-muted">${paciente.email}</div>
       </div>
       <div style="margin-bottom:.875rem">
-        <div class="text-sm text-muted" style="text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px">Serviço</div>
+        <div class="text-sm text-muted" style="text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px">Servico</div>
         <div class="receipt-row">
-          <span>Videoconsulta — ${tipo?.label || consulta.tipo} (${DB.clinica.duracao} min)</span>
-          <span>${pagamento.valor},00€</span>
+          <span>Videoconsulta - ${tipo?.label || consulta.tipo} (${DB.clinica.duracao} min)</span>
+          <span>${pagamento.valor},00EUR</span>
         </div>
       </div>
       <div class="receipt-total">
         <span>Total pago</span>
-        <span>${pagamento.valor},00€</span>
+        <span>${pagamento.valor},00EUR</span>
       </div>
       <div class="receipt-paid">
-        <i class="ti ti-check" style="font-size:12px;vertical-align:-1px;margin-right:4px"></i>
-        Pago via ${fmtMetodo(pagamento.metodo)} · ${fmtData(pagamento.data)}
+        Pago via ${fmtMetodo(pagamento.metodo)} - ${fmtData(pagamento.data)}
       </div>
     </div>
   `;

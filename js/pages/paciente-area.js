@@ -1,27 +1,41 @@
-// AREA DO PACIENTE
-Router.register("paciente-area", () => {
+// AREA DO PACIENTE (Supabase)
+Router.register("paciente-area", async () => {
   if (!Auth.requireAuth("paciente")) return;
-  const user = Auth.currentUser;
-  const consultas = DB.getConsultasPaciente(user.id);
-  const proximas = consultas.filter(c => c.data >= getToday() && c.estado !== "cancelada");
-  const passadas = consultas.filter(c => c.data < getToday() || c.estado === "concluida");
+  const user = Auth.currentPerfil;
+
+  document.getElementById("app").innerHTML = `
+    <div class="app-shell">
+      ${renderSidebar("paciente-area")}
+      <main class="main-content">
+        <div style="display:flex;align-items:center;justify-content:center;height:60vh;flex-direction:column;gap:12px">
+          <i class="ti ti-loader-2" style="font-size:28px;color:var(--teal-400);animation:spin 1s linear infinite"></i>
+          <div style="font-size:13px;color:var(--gray-400)">A carregar...</div>
+        </div>
+      </main>
+    </div>
+  `;
+
+  const consultas = await SB.getConsultasPaciente(user.id);
+  const hoje = getToday();
+  const proximas = consultas.filter(c => c.data >= hoje && c.estado !== "cancelada");
+  const passadas = consultas.filter(c => c.data < hoje || c.estado === "concluida");
 
   const proximasHtml = proximas.length
     ? proximas.map(c => {
-        const tipo = DB.getTipoConsulta(c.tipo);
+        const tipo = c.tipos_consulta;
         return `<div class="appt-item">
           <div style="min-width:90px">
             <div class="font-medium" style="font-size:13px">${fmtData(c.data)}</div>
-            <div class="text-sm text-muted">${c.hora}</div>
+            <div class="text-sm text-muted">${c.hora?.substring(0,5)}</div>
           </div>
           <div class="appt-info">
-            <div class="appt-name">${tipo?.label}</div>
+            <div class="appt-name">${tipo?.label || c.tipo}</div>
             <div class="appt-type"><i class="ti ti-video" style="font-size:11px;color:var(--blue-400)"></i> Videoconsulta</div>
           </div>
           <div class="appt-actions">
             ${badgeEstado(c.estado)}
-            ${c.meetLink
-              ? `<a href="${c.meetLink}" target="_blank" class="btn btn-meet btn-sm"><i class="ti ti-video"></i> Entrar</a>`
+            ${c.meet_link
+              ? `<a href="${c.meet_link}" target="_blank" class="btn btn-meet btn-sm"><i class="ti ti-video"></i> Entrar</a>`
               : `<span class="text-sm text-muted">Link em breve</span>`
             }
           </div>
@@ -31,22 +45,24 @@ Router.register("paciente-area", () => {
 
   const passadasHtml = passadas.length
     ? passadas.slice(0, 5).map(c => {
-        const tipo = DB.getTipoConsulta(c.tipo);
-        const pag = c.pagamentoId ? DB.getPagamento(c.pagamentoId) : null;
+        const tipo = c.tipos_consulta;
+        const pag = c.pagamentos?.[0];
         return `<div class="appt-item">
           <div style="min-width:90px">
             <div class="font-medium" style="font-size:13px">${fmtData(c.data)}</div>
-            <div class="text-sm text-muted">${c.hora}</div>
+            <div class="text-sm text-muted">${c.hora?.substring(0,5)}</div>
           </div>
           <div class="appt-info">
-            <div class="appt-name">${tipo?.label}</div>
+            <div class="appt-name">${tipo?.label || c.tipo}</div>
             <div class="appt-type">${pag ? `${fmtMetodo(pag.metodo)} - ${pag.valor}EUR` : "-"}</div>
           </div>
           ${badgeEstado(c.estado)}
-          ${pag ? `<button class="btn btn-ghost btn-sm" onclick="verReciboPaciente('${c.id}')"><i class="ti ti-file-invoice"></i> Recibo</button>` : ""}
         </div>`;
       }).join("")
     : `<div class="empty-state"><i class="ti ti-history"></i><p>Sem historico</p></div>`;
+
+  const iniciais = (user.nome || "?").split(" ").map(n => n[0]).slice(0,2).join("").toUpperCase();
+  const primeiroNome = (user.nome || "Paciente").split(" ")[0];
 
   document.getElementById("app").innerHTML = `
     <div class="app-shell">
@@ -55,7 +71,7 @@ Router.register("paciente-area", () => {
         <div class="page-header">
           <div class="page-header-row">
             <div>
-              <div class="page-title">Ola, ${user.nome.split(" ")[0]}</div>
+              <div class="page-title">Ola, ${primeiroNome}!</div>
               <div class="page-sub">Area do paciente</div>
             </div>
             <button class="btn btn-primary" onclick="Router.go('portal')">
@@ -105,15 +121,3 @@ Router.register("paciente-area", () => {
   `;
 });
 
-function verReciboPaciente(consultaId) {
-  showModal(`
-    <div class="modal" style="max-width:480px">
-      <div class="modal-title">Recibo da consulta</div>
-      ${renderRecibo(consultaId)}
-      <div class="modal-footer">
-        <button class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()">Fechar</button>
-        <button class="btn btn-secondary" onclick="window.print()"><i class="ti ti-printer"></i> Imprimir</button>
-      </div>
-    </div>
-  `);
-}
