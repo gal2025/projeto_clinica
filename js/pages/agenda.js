@@ -1,78 +1,80 @@
-// ─── AGENDA (MÉDICA) ───
+// ─── AGENDA (Supabase) ───
 let agendaState = {
   year: new Date().getFullYear(),
-  month: new Date().getMonth(), // 0-based
+  month: new Date().getMonth(),
   selectedDate: getToday(),
 };
 
-Router.register("agenda", () => {
+Router.register("agenda", async () => {
   if (!Auth.requireAuth("medica")) return;
-  renderAgenda();
+  agendaState.selectedDate = getToday();
+  await renderAgenda();
 });
 
-function renderAgenda() {
+async function renderAgenda() {
+  document.getElementById("app").innerHTML = `
+    <div class="app-shell">
+      ${renderSidebar("agenda")}
+      <main class="main-content">
+        <div style="display:flex;align-items:center;justify-content:center;height:60vh;flex-direction:column;gap:12px">
+          <i class="ti ti-loader-2" style="font-size:28px;color:var(--teal-400);animation:spin 1s linear infinite"></i>
+          <div style="font-size:13px;color:var(--gray-400)">A carregar agenda...</div>
+        </div>
+      </main>
+    </div>
+  `;
+
   const { year, month, selectedDate } = agendaState;
   const anoMes = `${year}-${String(month + 1).padStart(2, "0")}`;
-  const diasComConsultas = DB.getDiasComConsultas(anoMes);
-  const consultasDia = DB.getConsultasDia(selectedDate);
+  const [consultasDia, diasComConsultas] = await Promise.all([
+    SB.getConsultasDia(selectedDate),
+    SB.getDiasComConsultas(anoMes),
+  ]);
 
-  // Mini calendar
   const meses = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
-  const firstDay = new Date(year, month, 1).getDay(); // 0=Sun
-  const adjustedFirst = (firstDay === 0) ? 6 : firstDay - 1; // Mon=0
+  const firstDay = new Date(year, month, 1).getDay();
+  const adjustedFirst = firstDay === 0 ? 6 : firstDay - 1;
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const prevDays = new Date(year, month, 0).getDate();
   const today = getToday();
 
   let calCells = "";
-  // prev month
   for (let i = adjustedFirst - 1; i >= 0; i--) {
     calCells += `<div class="cal-day other-month">${prevDays - i}</div>`;
   }
-  // this month
   for (let d = 1; d <= daysInMonth; d++) {
     const iso = `${year}-${String(month+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
     const isToday = iso === today;
     const isSel = iso === selectedDate;
     const hasAppt = diasComConsultas.includes(d);
-    const cls = [
-      "cal-day",
-      isToday ? "today" : "",
-      isSel && !isToday ? "selected" : "",
-      hasAppt ? "has-appt" : "",
-    ].filter(Boolean).join(" ");
+    const cls = ["cal-day", isToday?"today":"", isSel&&!isToday?"selected":"", hasAppt?"has-appt":""].filter(Boolean).join(" ");
     calCells += `<div class="${cls}" onclick="selectDia('${iso}')">${d}</div>`;
   }
-  // next month
   const totalCells = Math.ceil((adjustedFirst + daysInMonth) / 7) * 7;
   for (let d = 1; d <= totalCells - adjustedFirst - daysInMonth; d++) {
     calCells += `<div class="cal-day other-month">${d}</div>`;
   }
 
-  // Timeline
-  const horarios = ["09:00","10:00","11:00","11:30","12:30","14:00","15:00","16:00","16:30","17:30"];
-  const horariosSlots = Array.from(new Set([
-    "09:00","10:00","11:00","11:30","12:00","12:30","13:00","14:00","15:00","16:00","16:30","17:00","17:30"
-  ]));
-
+  const horariosSlots = ["09:00","10:00","11:00","11:30","12:00","12:30","14:00","15:00","16:00","16:30","17:00","17:30"];
   const consultasMap = {};
-  consultasDia.forEach(c => { consultasMap[c.hora] = c; });
+  consultasDia.forEach(c => { consultasMap[c.hora?.substring(0,5)] = c; });
 
   const timelineHtml = horariosSlots.map(hora => {
     const c = consultasMap[hora];
     if (c) {
-      const pac = DB.getPaciente(c.pacienteId);
-      const tipo = DB.getTipoConsulta(c.tipo);
+      const pac = c.perfis;
+      const tipo = c.tipos_consulta;
+      const iniciais = (pac?.nome || "?").split(" ").map(n => n[0]).slice(0,2).join("").toUpperCase();
       return `
         <div class="timeline-slot">
           <span class="slot-time">${hora}</span>
           <div class="slot-block ${c.estado === 'pendente' ? 'slot-pending' : 'slot-filled'}">
             <div>
-              <div class="slot-name">${pac.nome}</div>
+              <div class="slot-name">${pac?.nome || "—"}</div>
               <div class="slot-detail">${tipo?.label} · ${fmtEstado(c.estado)}</div>
             </div>
-            ${c.meetLink
-              ? `<a href="${c.meetLink}" target="_blank" class="btn btn-meet btn-sm"><i class="ti ti-video"></i> Entrar</a>`
+            ${c.meet_link
+              ? `<a href="${c.meet_link}" target="_blank" class="btn btn-meet btn-sm"><i class="ti ti-video"></i> Entrar</a>`
               : c.estado === "pendente"
                 ? `<button class="btn btn-secondary btn-sm" onclick="confirmarPagamentoModal('${c.id}')"><i class="ti ti-check"></i> Confirmar pag.</button>`
                 : ""
@@ -83,9 +85,7 @@ function renderAgenda() {
     return `
       <div class="timeline-slot">
         <span class="slot-time">${hora}</span>
-        <div class="slot-block slot-empty" onclick="novaConsultaModal('${selectedDate}','${hora}')">
-          + Adicionar marcação
-        </div>
+        <div class="slot-block slot-empty" onclick="novaConsultaModal('${selectedDate}','${hora}')">+ Adicionar marcação</div>
       </div>`;
   }).join("");
 
@@ -123,14 +123,13 @@ function renderAgenda() {
               <div style="display:flex;flex-direction:column;gap:8px">
                 <div class="flex-center gap-2"><span style="width:10px;height:10px;border-radius:50%;background:var(--teal-400);display:inline-block"></span> Com consulta</div>
                 <div class="flex-center gap-2"><span style="width:10px;height:10px;border-radius:50%;background:var(--amber-400);display:inline-block"></span> Pagamento pendente</div>
-                <div class="flex-center gap-2"><span style="width:10px;height:10px;border-radius:50%;background:var(--border);display:inline-block"></span> Disponível</div>
               </div>
             </div>
           </div>
           <div class="card">
             <div class="card-header">
               <div class="card-title" style="margin-bottom:0">${selLabel}</div>
-              <button class="btn btn-primary btn-sm" onclick="novaConsultaModal('${selectedDate}', '')">
+              <button class="btn btn-primary btn-sm" onclick="novaConsultaModal('${selectedDate}','')">
                 <i class="ti ti-plus"></i> Nova marcação
               </button>
             </div>
@@ -142,24 +141,22 @@ function renderAgenda() {
   `;
 }
 
-function selectDia(iso) {
+async function selectDia(iso) {
   agendaState.selectedDate = iso;
-  renderAgenda();
+  await renderAgenda();
 }
 
-function agendaMes(delta) {
+async function agendaMes(delta) {
   agendaState.month += delta;
   if (agendaState.month < 0)  { agendaState.month = 11; agendaState.year--; }
   if (agendaState.month > 11) { agendaState.month = 0;  agendaState.year++; }
-  renderAgenda();
+  await renderAgenda();
 }
 
-function novaConsultaModal(data, hora) {
-  const pacientes = DB.utilizadores.filter(u => u.role === "paciente");
-  const tiposHtml = DB.tiposConsulta.map(t =>
-    `<option value="${t.id}">${t.label}</option>`).join("");
-  const pacHtml = pacientes.map(p =>
-    `<option value="${p.id}">${p.nome}</option>`).join("");
+async function novaConsultaModal(data, hora) {
+  const pacientes = await SB.getPerfis();
+  const tiposHtml = DB.tiposConsulta.map(t => `<option value="${t.id}">${t.label}</option>`).join("");
+  const pacHtml = pacientes.map(p => `<option value="${p.id}">${p.nome}</option>`).join("");
 
   showModal(`
     <div class="modal">
@@ -192,15 +189,16 @@ function novaConsultaModal(data, hora) {
   `);
 }
 
-function criarConsulta() {
-  const pacienteId = document.getElementById("nm-pac").value;
+async function criarConsulta() {
+  const paciente_id = document.getElementById("nm-pac").value;
   const data = document.getElementById("nm-data").value;
   const hora = document.getElementById("nm-hora").value;
   const tipo = document.getElementById("nm-tipo").value;
   if (!data || !hora) { showToast("Preencha todos os campos", "error"); return; }
-  DB.addConsulta({ pacienteId, data, hora, tipo, estado: "pendente", pagamentoId: null, meetLink: null, notas: "" });
+  const { error } = await SB.addConsulta({ paciente_id, data, hora: hora+":00", tipo, estado: "pendente" });
+  if (error) { showToast("Erro ao criar marcação", "error"); return; }
   document.querySelector(".modal-overlay")?.remove();
   agendaState.selectedDate = data;
-  showToast("Marcação criada com sucesso!", "success");
-  renderAgenda();
+  showToast("Marcação criada com sucesso!");
+  await renderAgenda();
 }

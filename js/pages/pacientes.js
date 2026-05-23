@@ -1,35 +1,43 @@
-// ─── PACIENTES (MÉDICA) ───
-Router.register("pacientes", () => {
+// ─── PACIENTES (Supabase) ───
+Router.register("pacientes", async () => {
   if (!Auth.requireAuth("medica")) return;
-  renderPacientes("");
+  await renderPacientes("");
 });
 
-function renderPacientes(filtro) {
-  const todos = DB.utilizadores.filter(u => u.role === "paciente");
+async function renderPacientes(filtro) {
+  document.getElementById("app").innerHTML = `
+    <div class="app-shell">
+      ${renderSidebar("pacientes")}
+      <main class="main-content">
+        <div style="display:flex;align-items:center;justify-content:center;height:60vh;flex-direction:column;gap:12px">
+          <i class="ti ti-loader-2" style="font-size:28px;color:var(--teal-400);animation:spin 1s linear infinite"></i>
+          <div style="font-size:13px;color:var(--gray-400)">A carregar pacientes...</div>
+        </div>
+      </main>
+    </div>
+  `;
+
+  const todos = await SB.getPerfis();
   const lista = filtro
-    ? todos.filter(p =>
-        p.nome.toLowerCase().includes(filtro.toLowerCase()) ||
-        p.email.toLowerCase().includes(filtro.toLowerCase()) ||
-        (p.nif || "").includes(filtro)
-      )
+    ? todos.filter(p => p.nome?.toLowerCase().includes(filtro.toLowerCase()) || (p.nif||"").includes(filtro))
     : todos;
 
-  const rows = lista.map(p => {
-    const consultas = DB.getConsultasPaciente(p.id);
+  const rows = await Promise.all(lista.map(async p => {
+    const consultas = await SB.getConsultasPaciente(p.id);
     const ultima = consultas[0];
     const pendente = consultas.some(c => c.estado === "pendente");
     const estado = pendente ? "pendente" : consultas.length > 0 ? "ativo" : "novo";
-    const estadoMap = { ativo:"badge-green", pendente:"badge-amber", novo:"badge-blue" };
-    const estadoLabel = { ativo:"Ativo", pendente:"Pag. pendente", novo:"Novo" };
-
+    const map = { ativo:"badge-green", pendente:"badge-amber", novo:"badge-blue" };
+    const label = { ativo:"Ativo", pendente:"Pag. pendente", novo:"Novo" };
+    const iniciais = (p.nome||"?").split(" ").map(n=>n[0]).slice(0,2).join("").toUpperCase();
     return `
       <tr>
         <td>
           <div class="flex-center gap-3">
-            <div class="avatar-circle patient" style="font-size:11px">${p.iniciais}</div>
+            <div class="avatar-circle patient" style="font-size:11px">${iniciais}</div>
             <div>
               <div class="font-medium">${p.nome}</div>
-              <div class="text-sm text-muted">${p.email}</div>
+              <div class="text-sm text-muted">${p.id}</div>
             </div>
           </div>
         </td>
@@ -37,14 +45,14 @@ function renderPacientes(filtro) {
         <td class="text-sm">${p.telefone || "—"}</td>
         <td class="text-sm">${ultima ? fmtData(ultima.data) : "—"}</td>
         <td style="text-align:center;font-size:13px">${consultas.length}</td>
-        <td><span class="badge ${estadoMap[estado]}">${estadoLabel[estado]}</span></td>
+        <td><span class="badge ${map[estado]}">${label[estado]}</span></td>
         <td>
-          <button class="btn btn-secondary btn-sm" onclick="verFicha('${p.id}')">
+          <button class="btn btn-secondary btn-sm" onclick="verFichaPaciente('${p.id}')">
             <i class="ti ti-eye"></i> Ver ficha
           </button>
         </td>
       </tr>`;
-  }).join("");
+  }));
 
   document.getElementById("app").innerHTML = `
     <div class="app-shell">
@@ -60,25 +68,19 @@ function renderPacientes(filtro) {
         </div>
         <div class="card">
           <div style="display:flex;gap:8px;margin-bottom:1rem">
-            <input class="form-input" type="text" placeholder="Pesquisar por nome, NIF ou email..." value="${filtro}"
+            <input class="form-input" type="text" placeholder="Pesquisar por nome ou NIF..." value="${filtro}"
               oninput="renderPacientes(this.value)" style="max-width:400px">
           </div>
           <div class="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>Paciente</th>
-                  <th>NIF</th>
-                  <th>Contacto</th>
-                  <th>Última consulta</th>
-                  <th style="text-align:center">Consultas</th>
-                  <th>Estado</th>
-                  <th>Ações</th>
+                  <th>Paciente</th><th>NIF</th><th>Contacto</th>
+                  <th>Ultima consulta</th><th style="text-align:center">Consultas</th>
+                  <th>Estado</th><th>Acoes</th>
                 </tr>
               </thead>
-              <tbody>
-                ${rows || `<tr><td colspan="7"><div class="empty-state"><i class="ti ti-search"></i><p>Nenhum paciente encontrado</p></div></td></tr>`}
-              </tbody>
+              <tbody>${rows.join("") || `<tr><td colspan="7"><div class="empty-state"><i class="ti ti-search"></i><p>Nenhum paciente encontrado</p></div></td></tr>`}</tbody>
             </table>
           </div>
         </div>
@@ -87,33 +89,29 @@ function renderPacientes(filtro) {
   `;
 }
 
-function verFicha(pacienteId) {
-  const p = DB.getPaciente(pacienteId);
-  const consultas = DB.getConsultasPaciente(pacienteId);
+async function verFichaPaciente(id) {
+  const [p, consultas] = await Promise.all([SB.getPerfil(id), SB.getConsultasPaciente(id)]);
+  const iniciais = (p.nome||"?").split(" ").map(n=>n[0]).slice(0,2).join("").toUpperCase();
 
   const consultasHtml = consultas.length
-    ? consultas.map(c => {
-        const tipo = DB.getTipoConsulta(c.tipo);
-        return `
-          <div class="appt-item" style="margin-bottom:7px">
-            <span class="appt-time" style="min-width:80px">${fmtData(c.data)}</span>
-            <div class="appt-info">
-              <div class="appt-name">${tipo?.label}</div>
-              <div class="appt-type">${c.hora}</div>
-            </div>
-            ${badgeEstado(c.estado)}
-            ${c.pagamentoId ? `<button class="btn btn-ghost btn-sm" onclick="verRecibo('${c.id}')"><i class="ti ti-file-invoice"></i> Recibo</button>` : ""}
-          </div>`;
-      }).join("")
+    ? consultas.map(c => `
+        <div class="appt-item" style="margin-bottom:7px">
+          <span class="appt-time" style="min-width:80px">${fmtData(c.data)}</span>
+          <div class="appt-info">
+            <div class="appt-name">${c.tipos_consulta?.label || c.tipo}</div>
+            <div class="appt-type">${c.hora?.substring(0,5)}</div>
+          </div>
+          ${badgeEstado(c.estado)}
+        </div>`).join("")
     : `<div class="empty-state"><i class="ti ti-calendar-off"></i><p>Sem consultas</p></div>`;
 
   showModal(`
     <div class="modal" style="max-width:540px">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:1.25rem">
-        <div class="avatar-circle patient lg">${p.iniciais}</div>
+        <div class="avatar-circle patient lg">${iniciais}</div>
         <div>
           <div style="font-size:17px;font-weight:500">${p.nome}</div>
-          <div class="text-sm text-muted">${p.email}</div>
+          <div class="text-sm text-muted">${p.nif || "Sem NIF"}</div>
         </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1.25rem">
@@ -127,34 +125,20 @@ function verFicha(pacienteId) {
         </div>
         <div style="background:var(--bg-subtle);border-radius:var(--radius-md);padding:.75rem">
           <div class="text-sm text-muted">Data de nascimento</div>
-          <div class="font-medium" style="font-size:13px">${p.dataNascimento ? fmtData(p.dataNascimento) : "—"}</div>
+          <div class="font-medium" style="font-size:13px">${p.data_nascimento ? fmtData(p.data_nascimento) : "—"}</div>
         </div>
         <div style="background:var(--bg-subtle);border-radius:var(--radius-md);padding:.75rem">
           <div class="text-sm text-muted">Total de consultas</div>
           <div class="font-medium" style="font-size:13px">${consultas.length}</div>
         </div>
       </div>
-      <div class="card-title">Histórico de consultas</div>
+      <div class="card-title">Historico de consultas</div>
       <div style="max-height:260px;overflow-y:auto">${consultasHtml}</div>
       <div class="modal-footer">
         <button class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()">Fechar</button>
-        <button class="btn btn-primary" onclick="this.closest('.modal-overlay').remove();novaConsultaModal('${getToday()}','')">
+        <button class="btn btn-primary" onclick="this.closest('.modal-overlay').remove();Router.go('agenda')">
           <i class="ti ti-calendar-plus"></i> Nova consulta
         </button>
-      </div>
-    </div>
-  `);
-}
-
-function verRecibo(consultaId) {
-  document.querySelector(".modal-overlay")?.remove();
-  showModal(`
-    <div class="modal" style="max-width:480px">
-      <div class="modal-title">Recibo</div>
-      ${renderRecibo(consultaId)}
-      <div class="modal-footer">
-        <button class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()">Fechar</button>
-        <button class="btn btn-secondary" onclick="window.print()"><i class="ti ti-printer"></i> Imprimir</button>
       </div>
     </div>
   `);
