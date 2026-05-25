@@ -1,3 +1,13 @@
+// ─── SANITIZAÇÃO XSS ───
+function esc(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
 // ─── SHARED COMPONENTS ───
 
 function renderSidebar(activePage) {
@@ -39,9 +49,9 @@ function renderSidebar(activePage) {
       </nav>
       <div class="nav-divider"></div>
       <div class="sidebar-user">
-        <div class="avatar-circle ${isMedica ? '' : 'patient'}">${iniciais}</div>
+        <div class="avatar-circle ${isMedica ? '' : 'patient'}">${esc(iniciais)}</div>
         <div>
-          <div class="sidebar-user-name">${user.nome}</div>
+          <div class="sidebar-user-name">${esc(user.nome)}</div>
           <div class="sidebar-user-role">${isMedica ? 'Medica' : 'Paciente'}</div>
         </div>
       </div>
@@ -59,7 +69,7 @@ function renderTopbar(showLogin = true) {
       <div class="topbar-logo" onclick="Router.go('landing')" style="cursor:pointer">
         <div class="topbar-logo-mark"><i class="ti ti-brain" aria-hidden="true"></i></div>
         <div>
-          <div class="topbar-name">${DB.clinica.nome}</div>
+          <div class="topbar-name">${esc(DB.clinica.nome)}</div>
         </div>
       </div>
       <div class="topbar-actions">
@@ -83,7 +93,11 @@ function showToast(msg, type = "success") {
   const icons = { success: "ti-check", error: "ti-x", info: "ti-info-circle" };
   const t = document.createElement("div");
   t.className = `toast ${type}`;
-  t.innerHTML = `<i class="ti ${icons[type] || 'ti-check'}" aria-hidden="true"></i> ${msg}`;
+  const icon = document.createElement('i');
+icon.className = `ti ${icons[type] || 'ti-check'}`;
+icon.setAttribute('aria-hidden', 'true');
+t.appendChild(icon);
+;
   document.body.appendChild(t);
   setTimeout(() => t.remove(), 3500);
 }
@@ -115,8 +129,8 @@ function renderRecibo(consultaId) {
       </div>
       <div style="margin-bottom:1rem">
         <div class="text-sm text-muted" style="text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px">Paciente</div>
-        <div class="font-medium">${paciente.nome}</div>
-        <div class="text-sm text-muted">NIF: ${paciente.nif}</div>
+        <div class="font-medium">${esc(paciente.nome)}</div>
+        <div class="text-sm text-muted">NIF: ${esc(paciente.nif)}</div>
       </div>
       <div style="margin-bottom:.875rem">
         <div class="text-sm text-muted" style="text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px">Servico</div>
