@@ -10,6 +10,7 @@ let portalState = {
   consultaId: null,
   clientSecret: null,
   stripeElements: null,
+  meetLink: null,
 };
 
 Router.register("portal", () => {
@@ -140,7 +141,7 @@ function renderStep2() {
 }
 
 function renderStep3() {
-  const meetLink = "https://meet.google.com/test-demo-link";
+  const meetLink = portalState.meetLink || "https://meet.google.com/a-gerar";
   return '<div style="max-width:520px;margin:0 auto;text-align:center">' +
     '<div style="width:64px;height:64px;border-radius:50%;background:var(--teal-50);display:flex;align-items:center;justify-content:center;margin:0 auto 1.25rem">' +
     '<i class="ti ti-circle-check" style="font-size:30px;color:var(--teal-400)"></i></div>' +
@@ -235,8 +236,11 @@ async function processarPagamento() {
     return;
   }
 
-  // Confirmar consulta no Supabase
-  await SB.confirmarPagamento(portalState.consultaId, "cartao");
+  // Confirmar consulta no Supabase e obter link Meet
+  const pag = await SB.confirmarPagamento(portalState.consultaId, "cartao");
+  // Buscar link Meet da consulta actualizada
+  const { data: consultaAtualizada } = await sb.from('consultas').select('meet_link').eq('id', portalState.consultaId).single();
+  portalState.meetLink = consultaAtualizada?.meet_link || null;
   portalState.step = 3;
   showToast("Pagamento confirmado!");
   renderPortal();

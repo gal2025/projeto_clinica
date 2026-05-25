@@ -97,11 +97,9 @@ const SB = {
   },
 
   async confirmarPagamento(consultaId, metodo) {
-    // Gerar número de recibo
     const { count } = await sb.from('pagamentos').select('*', { count: 'exact', head: true });
     const reciboNum = String((count || 0) + 1).padStart(4, '0');
 
-    // Inserir pagamento
     const { data: pag } = await sb.from('pagamentos').insert({
       consulta_id: consultaId,
       valor: DB.clinica.preco,
@@ -111,11 +109,35 @@ const SB = {
       data_pagamento: new Date().toISOString(),
     }).select().single();
 
-    // Gerar link Meet fictício e confirmar consulta
-    const meetLink = 'https://meet.google.com/' +
-      Math.random().toString(36).substring(2, 5) + '-' +
-      Math.random().toString(36).substring(2, 5) + '-' +
-      Math.random().toString(36).substring(2, 5);
+    const { data: consulta } = await sb.from('consultas')
+      .select('*, perfis(*), tipos_consulta(*)')
+      .eq('id', consultaId).single();
+
+    let meetLink = null;
+    try {
+      const res = await fetch(
+        'https://obxacsofujzghcycvftm.supabase.co/functions/v1/criar-meet',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + SUPABASE_ANON,
+          },
+          body: JSON.stringify({
+            consulta_id: consultaId,
+            data: consulta.data,
+            hora: consulta.hora.substring(0, 5),
+            tipo: consulta.tipos_consulta ? consulta.tipos_consulta.label : consulta.tipo,
+            paciente_nome:  consulta.perfis ? consulta.perfis.nome  : 'Paciente',
+            paciente_email: consulta.perfis ? consulta.perfis.email : DB.clinica.email,
+          }),
+        }
+      );
+      const data = await res.json();
+      meetLink = data.meetLink || null;
+    } catch (e) {
+      console.warn('Erro ao criar Meet:', e);
+    }
 
     await sb.from('consultas').update({
       estado: 'confirmada',
