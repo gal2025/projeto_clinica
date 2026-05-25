@@ -84,13 +84,18 @@ function renderStep1() {
   });
   datesHtml += '</div>';
 
-  const allSlots = ["09:00","10:00","11:00","12:00","14:00","15:00","16:00","17:00"];
-  let slotsHtml = '<div class="slots-grid">';
-  allSlots.forEach(h => {
-    const sel = s.hora === h;
+const allSlots = ["09:00","10:00","11:00","12:00","14:00","15:00","16:00","17:00"];
+let slotsHtml = '<div class="slots-grid">';
+allSlots.forEach(h => {
+  const sel = s.hora === h;
+  const ocupado = (s.horasOcupadas || []).includes(h);
+  if (ocupado) {
+    slotsHtml += '<button class="slot-btn" disabled style="opacity:0.4;cursor:not-allowed;text-decoration:line-through">' + h + '</button>';
+  } else {
     slotsHtml += '<button class="slot-btn' + (sel ? " selected" : "") + '" onclick="selHora(\'' + h + '\')">' + h + '</button>';
-  });
-  slotsHtml += '</div>';
+  }
+});
+slotsHtml += '</div>';
 
   return '<div class="two-col" style="align-items:start">' +
     '<div class="card">' +
@@ -164,8 +169,13 @@ function renderStep3() {
     '</div></div>';
 }
 
-function selData(iso) { portalState.data = iso; renderPortal(); }
-function selHora(h)   { portalState.hora = h; renderPortal(); }
+async function selData(iso) {
+  portalState.data = iso;
+  portalState.hora = "";
+  portalState.horasOcupadas = await SB.getHorasOcupadas(iso);
+  renderPortal();
+}
+function selHora(h) { portalState.hora = h; renderPortal(); }
 
 async function avancarStep2() {
   const nome  = document.getElementById("p-nome")?.value.trim();

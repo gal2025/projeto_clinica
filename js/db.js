@@ -146,4 +146,12 @@ const SB = {
 
     return pag;
   },
+ async getHorasOcupadas(data) {
+  const { data: rows } = await sb
+    .from('consultas')
+    .select('hora')
+    .eq('data', data)
+    .in('estado', ['pendente', 'confirmada']);
+  return (rows || []).map(r => r.hora.substring(0, 5));
+}, 
 };
