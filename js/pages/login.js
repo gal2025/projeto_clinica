@@ -148,7 +148,6 @@ async function doRegisto() {
     toggleRegisto();
   }
 }
-}
 
 // Spin animation
 const style = document.createElement("style");
