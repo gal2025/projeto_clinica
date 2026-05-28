@@ -106,7 +106,9 @@ slotsHtml += '</div>';
     '<div class="form-group"><label class="form-label">Tipo de consulta</label><select class="form-input" id="p-tipo">' + tipos + '</select></div>' +
     '<div class="form-group"><label class="form-label">Data</label>' + datesHtml + '</div>' +
     '<div class="form-group"><label class="form-label">Horario disponivel</label>' + slotsHtml + '</div>' +
-    '<button class="btn btn-primary btn-full mt-4" onclick="avancarStep2()"><i class="ti ti-arrow-right"></i> Continuar para pagamento</button>' +
+    (!Auth.currentPerfil ?
+      '<div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:var(--radius-md);padding:.75rem 1rem;margin-top:1rem;font-size:13px;color:#92400e;display:flex;align-items:center;gap:8px"><i class="ti ti-info-circle"></i> Para marcar uma consulta precisa de <button class="btn btn-ghost btn-sm" style="color:var(--teal-600);padding:0 4px;height:auto;text-decoration:underline" onclick="Router.go(\'login\')">fazer login ou criar conta</button></div>'
+      : '<button class="btn btn-primary btn-full mt-4" onclick="avancarStep2()"><i class="ti ti-arrow-right"></i> Continuar para pagamento</button>') +
     '</div>' +
     '<div>' +
     '<div class="card" style="margin-bottom:1rem"><div class="card-title">Resumo</div>' +
