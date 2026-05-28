@@ -112,20 +112,42 @@ async function doRegisto() {
   const pass  = document.getElementById("reg-pass").value;
   const errEl = document.getElementById("reg-err");
 
-  if (!nome || !email || !pass) {
+  errEl.style.display = "none";
+
+  if (!nome) {
     errEl.style.display = "block";
-    errEl.innerHTML = "<i class='ti ti-alert-circle'></i> Preencha todos os campos obrigatórios";
+    errEl.innerHTML = "<i class='ti ti-alert-circle'></i> O nome completo é obrigatório";
+    document.getElementById("reg-nome").focus();
     return;
   }
+  if (!email) {
+    errEl.style.display = "block";
+    errEl.innerHTML = "<i class='ti ti-alert-circle'></i> O email é obrigatório";
+    document.getElementById("reg-email").focus();
+    return;
+  }
+  if (!pass || pass.length < 6) {
+    errEl.style.display = "block";
+    errEl.innerHTML = "<i class='ti ti-alert-circle'></i> A password deve ter no mínimo 6 caracteres";
+    document.getElementById("reg-pass").focus();
+    return;
+  }
+
+  const btn = document.querySelector("#registo-form .btn-primary");
+  btn.disabled = true;
+  btn.innerHTML = `<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> A criar conta...`;
 
   const result = await Auth.register(email, pass, nome, nif, tel);
   if (result.error) {
     errEl.style.display = "block";
     errEl.innerHTML = `<i class='ti ti-alert-circle'></i> ${result.error.message}`;
+    btn.disabled = false;
+    btn.innerHTML = `<i class="ti ti-user-plus"></i> Criar conta`;
   } else {
-    showToast("Conta criada! Verifique o seu email para confirmar.", "info");
+    showToast("Conta criada com sucesso!", "success");
     toggleRegisto();
   }
+}
 }
 
 // Spin animation
