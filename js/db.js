@@ -171,4 +171,13 @@ async getTotalPacientes() {
     .eq('role', 'paciente');
   return count || 0;
 },
+async updatePerfil(id, campos) {
+  const { data, error } = await sb
+    .from('perfis')
+    .update(campos)
+    .eq('id', id)
+    .select()
+    .single();
+  return { data, error };
+},
 };

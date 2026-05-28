@@ -169,12 +169,57 @@ async function verFichaPaciente(id) {
       </div>
       <div class="card-title">Historico de consultas</div>
       <div style="max-height:260px;overflow-y:auto">${consultasHtml}</div>
-      <div class="modal-footer">
+   <div class="modal-footer">
         <button class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()">Fechar</button>
+        <button class="btn btn-secondary" onclick="editarPaciente('${p.id}','${esc(p.nome)}','${esc(p.nif||'')}','${esc(p.telefone||'')}')">
+          <i class="ti ti-edit"></i> Editar dados
+        </button>
         <button class="btn btn-primary" onclick="this.closest('.modal-overlay').remove();Router.go('agenda')">
           <i class="ti ti-calendar-plus"></i> Nova consulta
         </button>
       </div>
     </div>
   `);
+}
+async function editarPaciente(id, nome, nif, telefone) {
+  const overlay = showModal(`
+    <div class="modal" style="max-width:480px">
+      <div style="font-size:17px;font-weight:500;margin-bottom:1.25rem">
+        <i class="ti ti-edit"></i> Editar dados do paciente
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nome completo</label>
+        <input class="form-input" id="edit-nome" type="text" value="${nome}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">NIF</label>
+        <input class="form-input" id="edit-nif" type="text" value="${nif}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Telefone</label>
+        <input class="form-input" id="edit-telefone" type="text" value="${telefone}">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarEdicaoPaciente('${id}')">
+          <i class="ti ti-check"></i> Guardar
+        </button>
+      </div>
+    </div>
+  `);
+}
+
+async function guardarEdicaoPaciente(id) {
+  const nome = document.getElementById("edit-nome")?.value.trim();
+  const nif = document.getElementById("edit-nif")?.value.trim();
+  const telefone = document.getElementById("edit-telefone")?.value.trim();
+
+  if (!nome) { showToast("O nome é obrigatório", "error"); return; }
+
+  const { error } = await SB.updatePerfil(id, { nome, nif, telefone });
+  if (error) { showToast("Erro ao guardar: " + error.message, "error"); return; }
+
+  document.querySelector(".modal-overlay")?.remove();
+  showToast("Dados atualizados com sucesso!");
+  await renderPacientes();
 }

@@ -102,6 +102,32 @@ Router.register("paciente-area", async () => {
           <div class="card-title">Historico</div>
           ${passadasHtml}
         </div>
+    <div class="card mb-6">
+          <div class="card-header">
+            <div class="card-title" style="margin-bottom:0">Os meus dados</div>
+            <button class="btn btn-secondary btn-sm" onclick="editarMeusDados()">
+              <i class="ti ti-edit"></i> Editar
+            </button>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-top:.75rem">
+            <div style="background:var(--bg-subtle);border-radius:var(--radius-md);padding:.75rem">
+              <div class="text-sm text-muted">Nome</div>
+              <div class="font-medium" style="font-size:13px">${esc(user.nome || "—")}</div>
+            </div>
+            <div style="background:var(--bg-subtle);border-radius:var(--radius-md);padding:.75rem">
+              <div class="text-sm text-muted">Email</div>
+              <div class="font-medium" style="font-size:13px">${esc(user.email || "—")}</div>
+            </div>
+            <div style="background:var(--bg-subtle);border-radius:var(--radius-md);padding:.75rem">
+              <div class="text-sm text-muted">NIF</div>
+              <div class="font-medium" style="font-size:13px">${esc(user.nif || "—")}</div>
+            </div>
+            <div style="background:var(--bg-subtle);border-radius:var(--radius-md);padding:.75rem">
+              <div class="text-sm text-muted">Telefone</div>
+              <div class="font-medium" style="font-size:13px">${esc(user.telefone || "—")}</div>
+            </div>
+          </div>
+        </div>    
         <div class="card" style="background:var(--teal-50);border-color:var(--teal-100)">
           <div class="flex-center gap-3">
             <div style="width:40px;height:40px;border-radius:50%;background:var(--teal-100);display:flex;align-items:center;justify-content:center">
@@ -120,4 +146,50 @@ Router.register("paciente-area", async () => {
     </div>
   `;
 });
+function editarMeusDados() {
+  const user = Auth.currentPerfil;
+  showModal(`
+    <div class="modal" style="max-width:480px">
+      <div style="font-size:17px;font-weight:500;margin-bottom:1.25rem">
+        <i class="ti ti-edit"></i> Editar os meus dados
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nome completo</label>
+        <input class="form-input" id="edit-nome" type="text" value="${esc(user.nome || '')}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">NIF</label>
+        <input class="form-input" id="edit-nif" type="text" value="${esc(user.nif || '')}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Telefone</label>
+        <input class="form-input" id="edit-telefone" type="text" value="${esc(user.telefone || '')}">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarMeusDados()">
+          <i class="ti ti-check"></i> Guardar
+        </button>
+      </div>
+    </div>
+  `);
+}
 
+async function guardarMeusDados() {
+  const nome = document.getElementById("edit-nome")?.value.trim();
+  const nif = document.getElementById("edit-nif")?.value.trim();
+  const telefone = document.getElementById("edit-telefone")?.value.trim();
+
+  if (!nome) { showToast("O nome é obrigatório", "error"); return; }
+
+  const { error } = await SB.updatePerfil(Auth.currentPerfil.id, { nome, nif, telefone });
+  if (error) { showToast("Erro ao guardar: " + error.message, "error"); return; }
+
+  Auth.currentPerfil.nome = nome;
+  Auth.currentPerfil.nif = nif;
+  Auth.currentPerfil.telefone = telefone;
+
+  document.querySelector(".modal-overlay")?.remove();
+  showToast("Dados atualizados com sucesso!");
+  Router.go("paciente-area");
+}
