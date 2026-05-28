@@ -154,4 +154,21 @@ const SB = {
     .in('estado', ['pendente', 'confirmada']);
   return (rows || []).map(r => r.hora.substring(0, 5));
 }, 
+async getPerfisComConsultas(limite, offset) {
+  const { data } = await sb
+    .from('perfis')
+    .select('*, consultas(id, estado, data, hora)')
+    .eq('role', 'paciente')
+    .order('nome')
+    .range(offset, offset + limite - 1);
+  return data || [];
+},
+
+async getTotalPacientes() {
+  const { count } = await sb
+    .from('perfis')
+    .select('*', { count: 'exact', head: true })
+    .eq('role', 'paciente');
+  return count || 0;
+},
 };
