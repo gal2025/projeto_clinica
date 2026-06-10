@@ -1,7 +1,7 @@
 // ─── DATABASE LAYER (Supabase) ───
 // Substitui as chamadas ao DB local (data.js)
 
-const SB = {
+var SB = {
 
   // ── PERFIS ──
   async getPerfis() {
