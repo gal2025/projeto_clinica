@@ -25,8 +25,8 @@ Router.register("dashboard", async () => {
   ]);
 
   // Separar: marcações a aprovar (sem pagamento) vs pagamentos pendentes (com pagamento)
-  const aAprovar = pendentes.filter(c => !c.pagamentos || c.pagamentos.length === 0);
-  const pagPendentes = pendentes.filter(c => c.pagamentos && c.pagamentos.length > 0);
+  const aAprovar = pendentes.filter(c => c.estado === 'aguarda_aprovacao');
+  const pagPendentes = pendentes.filter(c => c.estado === 'pendente');
 
   const pagas = consultasMes.filter(c => c.pagamentos?.length > 0);
   const receita = pagas.reduce((s, c) => {

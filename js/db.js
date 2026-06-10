@@ -1,5 +1,4 @@
 // ─── DATABASE LAYER (Supabase) ───
-// Substitui as chamadas ao DB local (data.js)
 
 var SB = {
 
@@ -49,11 +48,22 @@ var SB = {
     return rows || [];
   },
 
+  // Consultas pendentes de pagamento (aprovadas, sem pagamento registado)
   async getConsultasPendentes() {
     const { data: rows } = await sb
       .from('consultas')
+      .select('*, perfis(*), tipos_consulta(*), pagamentos(*)')
+      .in('estado', ['pendente', 'aguarda_aprovacao'])
+      .order('data').order('hora');
+    return rows || [];
+  },
+
+  // Marcações que aguardam aprovação da médica
+  async getConsultasAguardaAprovacao() {
+    const { data: rows } = await sb
+      .from('consultas')
       .select('*, perfis(*), tipos_consulta(*)')
-      .eq('estado', 'pendente')
+      .eq('estado', 'aguarda_aprovacao')
       .order('data').order('hora');
     return rows || [];
   },
@@ -146,45 +156,49 @@ var SB = {
 
     return pag;
   },
- async getHorasOcupadas(data) {
-  const { data: rows } = await sb
-    .from('consultas')
-    .select('hora')
-    .eq('data', data)
-    .in('estado', ['pendente', 'confirmada']);
-  return (rows || []).map(r => r.hora.substring(0, 5));
-}, 
-async getPerfisComConsultas(limite, offset) {
-  const { data } = await sb
-    .from('perfis')
-    .select('*, consultas(id, estado, data, hora)')
-    .eq('role', 'paciente')
-    .order('nome')
-    .range(offset, offset + limite - 1);
-  return data || [];
-},
 
-async getTotalPacientes() {
-  const { count } = await sb
-    .from('perfis')
-    .select('*', { count: 'exact', head: true })
-    .eq('role', 'paciente');
-  return count || 0;
-},
-async updatePerfil(id, campos) {
-  const { data, error } = await sb
-    .from('perfis')
-    .update(campos)
-    .eq('id', id)
-    .select()
-    .single();
-  return { data, error };
-},
-async cancelarConsulta(id) {
-  const { error } = await sb
-    .from('consultas')
-    .update({ estado: 'cancelada' })
-    .eq('id', id);
-  return { error };
-},
+  async getHorasOcupadas(data) {
+    const { data: rows } = await sb
+      .from('consultas')
+      .select('hora')
+      .eq('data', data)
+      .in('estado', ['pendente', 'confirmada', 'aguarda_aprovacao']);
+    return (rows || []).map(r => r.hora.substring(0, 5));
+  },
+
+  async getPerfisComConsultas(limite, offset) {
+    const { data } = await sb
+      .from('perfis')
+      .select('*, consultas(id, estado, data, hora)')
+      .eq('role', 'paciente')
+      .order('nome')
+      .range(offset, offset + limite - 1);
+    return data || [];
+  },
+
+  async getTotalPacientes() {
+    const { count } = await sb
+      .from('perfis')
+      .select('*', { count: 'exact', head: true })
+      .eq('role', 'paciente');
+    return count || 0;
+  },
+
+  async updatePerfil(id, campos) {
+    const { data, error } = await sb
+      .from('perfis')
+      .update(campos)
+      .eq('id', id)
+      .select()
+      .single();
+    return { data, error };
+  },
+
+  async cancelarConsulta(id) {
+    const { error } = await sb
+      .from('consultas')
+      .update({ estado: 'cancelada' })
+      .eq('id', id);
+    return { error };
+  },
 };

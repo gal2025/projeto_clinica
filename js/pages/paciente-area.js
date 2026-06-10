@@ -229,7 +229,7 @@ async function confirmarReagendamentoPaciente() {
   const { error } = await SB.updateConsulta(id, {
     data: novaData,
     hora: novaHora + ":00",
-    estado: "pendente", // volta a pendente aguardando confirmação da médica
+    estado: "aguarda_aprovacao",
   });
 
   if (error) {
@@ -291,4 +291,3 @@ async function guardarMeusDados() {
   showToast("Dados atualizados com sucesso!");
   Router.go("paciente-area");
 }
-
