@@ -180,4 +180,11 @@ async updatePerfil(id, campos) {
     .single();
   return { data, error };
 },
+async cancelarConsulta(id) {
+  const { error } = await sb
+    .from('consultas')
+    .update({ estado: 'cancelada' })
+    .eq('id', id);
+  return { error };
+},
 };
