@@ -24,6 +24,10 @@ Router.register("dashboard", async () => {
     SB.getPerfis(),
   ]);
 
+  // Separar: marcações a aprovar (sem pagamento) vs pagamentos pendentes (com pagamento)
+  const aAprovar = pendentes.filter(c => !c.pagamentos || c.pagamentos.length === 0);
+  const pagPendentes = pendentes.filter(c => c.pagamentos && c.pagamentos.length > 0);
+
   const pagas = consultasMes.filter(c => c.pagamentos?.length > 0);
   const receita = pagas.reduce((s, c) => {
     const pago = c.pagamentos?.find(p => p.estado === 'pago');
@@ -39,10 +43,10 @@ Router.register("dashboard", async () => {
         return `
           <div class="appt-item ${isPending ? 'pending' : ''}">
             <span class="appt-time">${c.hora?.substring(0,5)}</span>
-            <div class="avatar-circle" style="font-size:11px">${iniciais}</div>
+            <div class="avatar-circle" style="font-size:11px">${esc(iniciais)}</div>
             <div class="appt-info">
-              <div class="appt-name">${pac?.nome || '—'}</div>
-              <div class="appt-type">${tipo?.label} · ${DB.clinica.duracao} min</div>
+              <div class="appt-name">${esc(pac?.nome || '—')}</div>
+              <div class="appt-type">${esc(tipo?.label || '')} · ${DB.clinica.duracao} min</div>
             </div>
             <div class="appt-actions">
               ${badgeEstado(c.estado)}
@@ -57,25 +61,54 @@ Router.register("dashboard", async () => {
       }).join('')
     : `<div class="empty-state"><i class="ti ti-calendar-off"></i><p>Sem consultas para hoje</p></div>`;
 
-  const pendentesHtml = pendentes.length
-    ? pendentes.map(c => {
+  // Marcações a aprovar
+  const aAprovarHtml = aAprovar.length
+    ? aAprovar.map(c => {
+        const pac = c.perfis;
+        const tipo = c.tipos_consulta;
+        const iniciais = pac?.nome?.split(' ').map(n => n[0]).slice(0,2).join('') || '??';
+        return `
+          <div class="appt-item pending">
+            <span class="appt-time" style="min-width:72px">${fmtData(c.data)}</span>
+            <div class="avatar-circle" style="font-size:11px;background:var(--blue-50);color:var(--blue-800)">${esc(iniciais)}</div>
+            <div class="appt-info">
+              <div class="appt-name">${esc(pac?.nome || '—')}</div>
+              <div class="appt-type">${esc(tipo?.label || '')} · ${c.hora?.substring(0,5)}</div>
+            </div>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-primary btn-sm" onclick="aprovarMarcacao('${c.id}')">
+                <i class="ti ti-check"></i> Aprovar
+              </button>
+              <button class="btn btn-secondary btn-sm" style="color:var(--red-400)" onclick="rejeitarMarcacaoModal('${c.id}')">
+                <i class="ti ti-x"></i> Rejeitar
+              </button>
+            </div>
+          </div>`;
+      }).join('')
+    : `<div class="empty-state" style="padding:.75rem 0"><i class="ti ti-circle-check"></i><p>Sem marcações por aprovar</p></div>`;
+
+  // Pagamentos pendentes
+  const pagPendentesHtml = pagPendentes.length
+    ? pagPendentes.map(c => {
         const pac = c.perfis;
         const tipo = c.tipos_consulta;
         const iniciais = pac?.nome?.split(' ').map(n => n[0]).slice(0,2).join('') || '??';
         return `
           <div class="appt-item pending">
             <span class="appt-time">${fmtData(c.data)}</span>
-            <div class="avatar-circle" style="font-size:11px;background:var(--amber-50);color:var(--amber-800)">${iniciais}</div>
+            <div class="avatar-circle" style="font-size:11px;background:var(--amber-50);color:var(--amber-800)">${esc(iniciais)}</div>
             <div class="appt-info">
-              <div class="appt-name">${pac?.nome}</div>
-              <div class="appt-type">${tipo?.label} · ${c.hora?.substring(0,5)}</div>
+              <div class="appt-name">${esc(pac?.nome || '—')}</div>
+              <div class="appt-type">${esc(tipo?.label || '')} · ${c.hora?.substring(0,5)}</div>
             </div>
             <button class="btn btn-secondary btn-sm" onclick="confirmarPagamentoModal('${c.id}')">
               <i class="ti ti-check"></i> Confirmar
             </button>
           </div>`;
       }).join('')
-    : `<div class="empty-state"><i class="ti ti-circle-check"></i><p>Sem pagamentos pendentes</p></div>`;
+    : `<div class="empty-state" style="padding:.75rem 0"><i class="ti ti-circle-check"></i><p>Sem pagamentos pendentes</p></div>`;
+
+  const totalAcoes = aAprovar.length + pagPendentes.length;
 
   document.getElementById("app").innerHTML = `
     <div class="app-shell">
@@ -84,7 +117,7 @@ Router.register("dashboard", async () => {
         <div class="page-header">
           <div class="page-header-row">
             <div>
-              <div class="page-title">Bom dia, ${Auth.currentPerfil?.nome?.split(' ').slice(-1)[0]} 👋</div>
+              <div class="page-title">Bom dia, ${esc(Auth.currentPerfil?.nome?.split(' ').slice(-1)[0] || '')} 👋</div>
               <div class="page-sub">${getTodayLabel()}</div>
             </div>
             <button class="btn btn-primary" onclick="Router.go('agenda')">
@@ -99,9 +132,9 @@ Router.register("dashboard", async () => {
             <div class="stat-sub">${consultasHoje.find(c => c.estado === 'confirmada')?.hora?.substring(0,5) ? `Próxima: ${consultasHoje.find(c => c.estado === 'confirmada').hora.substring(0,5)}` : '—'}</div>
           </div>
           <div class="stat-card">
-            <div class="stat-label"><i class="ti ti-clock"></i> Pag. pendentes</div>
-            <div class="stat-value">${pendentes.length}</div>
-            <div class="stat-sub">${pendentes.length > 0 ? 'Ação necessária' : 'Tudo em dia'}</div>
+            <div class="stat-label"><i class="ti ti-clock"></i> Ações pendentes</div>
+            <div class="stat-value">${totalAcoes}</div>
+            <div class="stat-sub">${totalAcoes > 0 ? 'Requer atenção' : 'Tudo em dia'}</div>
           </div>
           <div class="stat-card">
             <div class="stat-label"><i class="ti ti-users"></i> Pacientes</div>
@@ -120,16 +153,23 @@ Router.register("dashboard", async () => {
             ${apptHtml}
           </div>
           <div class="card">
+            ${aAprovar.length > 0 ? `
+            <div class="card-header" style="margin-bottom:.75rem">
+              <div class="card-title" style="margin-bottom:0">Marcações a aprovar</div>
+              <span class="badge badge-blue">${aAprovar.length}</span>
+            </div>
+            ${aAprovarHtml}
+            <div style="border-top:1px solid var(--border);margin:.75rem 0"></div>` : ''}
             <div class="card-header">
               <div class="card-title" style="margin-bottom:0">Pagamentos pendentes</div>
-              ${pendentes.length > 0 ? `<span class="badge badge-amber">${pendentes.length}</span>` : ''}
+              ${pagPendentes.length > 0 ? `<span class="badge badge-amber">${pagPendentes.length}</span>` : ''}
             </div>
-            ${pendentesHtml}
+            ${pagPendentesHtml}
             <div style="margin-top:1.25rem">
               <div class="card-title">Como entrar nas consultas</div>
               <div class="meet-notice">
                 <i class="ti ti-brand-google"></i>
-                <div>Clique em <strong>"Entrar"</strong> ao lado de cada consulta confirmada para abrir o Google Meet.</div>
+                <div>Clique em <strong>"Entrar"</strong> ao lado de cada consulta confirmada para abrir o Google Meet. O paciente recebe o mesmo link por email após o pagamento.</div>
               </div>
             </div>
           </div>
@@ -139,6 +179,60 @@ Router.register("dashboard", async () => {
   `;
 });
 
+// ─── APROVAR MARCAÇÃO ───
+async function aprovarMarcacao(consultaId) {
+  const { error } = await SB.updateConsulta(consultaId, { estado: 'pendente' });
+  if (error) { showToast("Erro ao aprovar: " + error.message, "error"); return; }
+  showToast("Marcação aprovada! Aguarda pagamento do paciente.", "success");
+  Router.go("dashboard");
+}
+
+// ─── REJEITAR MARCAÇÃO ───
+function rejeitarMarcacaoModal(consultaId) {
+  window._rejeitarId = consultaId;
+  showModal(`
+    <div class="modal">
+      <div class="modal-title" style="color:var(--red-400)">
+        <i class="ti ti-x"></i> Rejeitar marcação
+      </div>
+      <p style="margin-bottom:1rem;color:var(--text-2);font-size:13px">
+        A consulta será cancelada e o paciente notificado.
+      </p>
+      <div class="form-group">
+        <label class="form-label">Motivo (opcional)</label>
+        <textarea class="form-input" id="rejeitar-motivo" rows="3"
+          placeholder="Ex: Horário não disponível, agenda completa..."></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()">Voltar</button>
+        <button class="btn btn-primary" style="background:var(--red-400);border-color:var(--red-400)"
+          onclick="executarRejeitar()">
+          <i class="ti ti-x"></i> Confirmar rejeição
+        </button>
+      </div>
+    </div>
+  `);
+}
+
+async function executarRejeitar() {
+  const id = window._rejeitarId;
+  const overlay = document.querySelector(".modal-overlay");
+  const btn = overlay?.querySelector(".btn-primary");
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader ti-spin"></i> A processar...'; }
+
+  const { error } = await SB.cancelarConsulta(id);
+  if (error) {
+    showToast("Erro ao rejeitar: " + error.message, "error");
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-x"></i> Confirmar rejeição'; }
+    return;
+  }
+
+  overlay?.remove();
+  showToast("Marcação rejeitada.", "success");
+  Router.go("dashboard");
+}
+
+// ─── CONFIRMAR PAGAMENTO ───
 async function confirmarPagamentoModal(consultaId) {
   let metodoSel = 'mbway';
   showModal(`
