@@ -199,7 +199,7 @@ async function criarConsulta() {
     paciente_id: pacienteId,
     data,
     hora: hora + ":00",
-    tipo_id: tipo,
+    tipo: tipo,
     estado: "pendente",
   });
   if (error) { showToast("Erro ao criar marcação: " + error.message, "error"); return; }
