@@ -26,6 +26,18 @@
     --f-display:"Fraunces",Georgia,serif;
     --f-body:"Instrument Sans",system-ui,sans-serif;
   }
+  
+.demo-notice {
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  background: var(--sand-2);
+  border-left: 3px solid var(--teal);
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.5rem;
+  border-radius: 0 6px 6px 0;
+}
+  
   *{margin:0;padding:0;box-sizing:border-box}
   html{scroll-behavior:smooth}
   body{font-family:var(--f-body);background:var(--sand);color:var(--ink);line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden}
@@ -175,7 +187,8 @@
 
 <header class="hero">
   <div class="wrap hero-grid">
-    <div>
+    <div>   
+      <p class="demo-notice">Projeto fictício de demonstração — desenvolvido para portefólio. Clínica, avaliações e disponibilidades são ilustrativas.</p>
       <span class="eyebrow">Fisioterapia e reabilitação · Lisboa</span>
       <h1>Recupere o movimento, <em>sem pressa e sem dor.</em></h1>
       <p class="hero-lead">Avaliamos, tratamos e acompanhamos cada passo da sua recuperação — com tempo, atenção e um plano pensado só para si.</p>
