@@ -300,11 +300,12 @@
           <p>Deixe os seus dados e entramos em contacto para agendar a avaliação inicial no horário que lhe der mais jeito.</p>
           <p style="color:var(--sage);font-weight:600;font-size:.95rem">Primeira avaliação sem compromisso.</p>
         </div>
-        <form class="booking-form" onsubmit="return false">
+        <form class="booking-form" onsubmit="mostrarMensagem(event)">
           <input type="text" placeholder="Nome" required>
           <input type="tel" placeholder="Telefone" required>
           <select aria-label="Motivo da consulta"><option>Qual o motivo da consulta?</option><option>Dor nas costas</option><option>Lesão desportiva</option><option>Pós-cirúrgico</option><option>Outro</option></select>
           <button type="submit" class="btn solid">Pedir marcação</button>
+          <p id="mensagem-marcacao" role="status" aria-live="polite"></p>
         </form>
       </div>
     </div>
@@ -357,6 +358,14 @@
 <script>
   document.getElementById('y').textContent=new Date().getFullYear();
   (function(){var n=document.querySelector('.nav');addEventListener('scroll',function(){n.classList.toggle('scrolled',scrollY>8)},{passive:true});})();
+  function mostrarMensagem(event) {
+  event.preventDefault();
+
+  const mensagem = document.getElementById("mensagem-marcacao");
+
+  mensagem.textContent =
+    "Este é um projeto de demonstração. Nenhum pedido de marcação foi enviado.";
+}
 </script>
 </body>
 </html>
